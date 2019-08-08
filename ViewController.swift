@@ -24,6 +24,8 @@ class ViewController: UIViewController {
     @IBOutlet weak var output: UITextView!
     @IBOutlet weak var lineChart: LineChartView!
     @IBOutlet weak var backGround: UIImageView!
+    @IBOutlet weak var textFieldForKey: UITextField!
+    @IBOutlet weak var enter2: UIButton!
     
     //get our bundle path
     let filePath = Bundle.main.resourcePath
@@ -43,6 +45,9 @@ class ViewController: UIViewController {
     var sec = 0.0
     var newInterval = 0.0
     var sensorFlag = 0
+    var key = ""
+    var count = 0.0
+    var csvData = "Count,Roll,Pitch,Yaw,Accleration-X,Acceleration-Y,Acceleration-Z,Rotation-Rate-X,Rotation-Rate-Y,Rotation-Rate-Z\n"
     
     let calendar = Calendar.current
     let defaults = UserDefaults.standard
@@ -53,12 +58,16 @@ class ViewController: UIViewController {
     
     @IBAction func openMap(_ sender: UIButton) {
         if(flagMap == 1){
+            startButton.isHidden = true
+            waveButton.isHidden = true
             flagMap = 0
             mapButton.setImage(closeMap, for: .normal)
             MapView.isHidden = false
         }
         else{
             flagMap = 1
+            startButton.isHidden = false
+            waveButton.isHidden = false
             mapButton.setImage(startMap, for: .normal)
             MapView.isHidden = true
         }
@@ -129,9 +138,14 @@ class ViewController: UIViewController {
         
        
         if(flagStart == 1){
+            count = 0.0
             flagStart = 0
-            textField.isHidden = false
-            enter.isHidden = false
+            mapButton.isHidden = true
+            waveButton.isHidden = true
+            textFieldForKey.isHidden = false
+            enter2.isHidden = false
+            textField.text = "Interval:"
+            textFieldForKey.text = "Key:"
             backGround.isHidden = true
             startButton.setImage(endImage, for: .normal)
             
@@ -159,6 +173,8 @@ class ViewController: UIViewController {
             
         }
         else{
+            mapButton.isHidden = false
+            waveButton.isHidden = false
             textField.isHidden = true
             enter.isHidden = true
             backGround.isHidden = false
@@ -175,15 +191,15 @@ class ViewController: UIViewController {
     
     
     @IBAction func returnResult(_ sender: UIButton) {
-        
+        self.view.endEditing(true)
         if(flagStart == 0){
             newInterval = NumberFormatter().number(from: textField.text ?? "0.5")!.doubleValue
             sensorFlag = 1
             
             if(manager.isDeviceMotionAvailable && sensorFlag == 1){
-                var count = 0
+                
                 manager.showsDeviceMovementDisplay = true
-                manager.deviceMotionUpdateInterval = 1
+                manager.deviceMotionUpdateInterval = newInterval
                 manager.startDeviceMotionUpdates(using: .xMagneticNorthZVertical,
                                                  to:OperationQueue.main, withHandler: { (data, error) in
                                                     if let validData = data {
@@ -196,11 +212,12 @@ class ViewController: UIViewController {
                                                         let accelerationX = validData.userAcceleration.x
                                                         let accelerationY = validData.userAcceleration.y
                                                         let accelerationZ = validData.userAcceleration.z
-                                                        count += 1
+                                                        
                                                         let strRoll = String(roll)
                                                         let strPitch = String(pitch)
                                                         let strYaw = String(yaw)
-                                                        let strCount = String (count)
+                                                        let strCount = self.key+"."+String (self.count)
+                                                        self.count += self.newInterval
                                                         let strRateX = String(rateX)
                                                         let strRateY = String(rateY)
                                                         let strRateZ = String(rateZ)
@@ -208,7 +225,9 @@ class ViewController: UIViewController {
                                                         let strAcceY = String(accelerationY)
                                                         let strAcceZ = String(accelerationZ)
                                                         let result = "Count: " + strCount + " Roll: " + strRoll + " Pitch: " + strPitch + " Yaw: " + strYaw + " rateX: " + strRateX + " rateY: " + strRateY + " rateZ: " + strRateZ + " accelerationX: " + strAcceX + " accelerationY: " + strAcceY + " accelerationZ: "+strAcceZ
-                                                        self.defaults.set(result,forKey: strCount)
+                                                        var  csvLine = strCount + "," + strRoll + "," + strPitch + ",";
+                                                        csvLine = csvLine + strYaw + "," + strAcceX + "," + strAcceY + "," + strAcceZ + "," + strRateX + "," + strRateY + "," + strRateZ + "\n"
+                                                        self.defaults.set(csvLine,forKey: strCount)
                                                         self.openLineChart(data: validData, interval: self.newInterval)
                                                     }
                 })
@@ -217,9 +236,10 @@ class ViewController: UIViewController {
             
         }
         else{
-        var key = String(textField.text ?? "")
         
-        if let result = defaults.string(forKey: key){
+        var localKey = String(textField.text ?? "")
+            localKey = key+"."+localKey
+        if let result = defaults.string(forKey: localKey){
         //output.text = defaults.data(forKey: key)
         output.text = result
         output.isHidden = false
@@ -235,6 +255,7 @@ class ViewController: UIViewController {
         if(flagWave == 1){
             waveButton.setImage(closeWave, for: .normal)
             textField.isHidden = false
+            textField.text = "Local Key:"
             enter.isHidden = false
             flagWave = 0
             
@@ -251,31 +272,76 @@ class ViewController: UIViewController {
         
     }
     
-   
-    func saveToFile (key : String){
+    @IBAction func save(_ sender: UIButton) {
+        if(key != "" && newInterval != 0.0){
+            saveToFile()
+        }
+    }
+    
+    func saveToFile (){
         let file = key + ".txt" //this is the file. we will write to and read from it
-        
-        let text = "some text" //just a text
+        let csvFile = key + ".csv"
         
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             
             let fileURL = dir.appendingPathComponent(file)
             
-            //writing
-            do {
-                try text.write(to: fileURL, atomically: false, encoding: .utf8)
+            var i = 0.0
+            while(i<count){
+                
+               
+                var localKey = key + "." + String(i)
+                if var data = defaults.string(forKey: localKey) {
+                    do{
+                        try data.write(to: fileURL, atomically: true, encoding: .utf8)
+                    }
+                    catch{
+                        print ("error in writing the file")
+                    }
+                    
+                }
+                
+                i += newInterval
+                
             }
-            catch {/* error handling here */}
+            let vc = UIActivityViewController(activityItems: [fileURL], applicationActivities: [])
+            present(vc, animated: true, completion: nil)
             
-            //reading
-            do {
-                let text2 = try String(contentsOf: fileURL, encoding: .utf8)
-            }
-            catch {/* error handling here */}
+            
+            //writing
+            /*
+             while(i<count){
+             
+             
+             var localKey = key + "." + String(i)
+             if var data = defaults.string(forKey: localKey) {
+             csvData.append(data)
+             
+             }
+             
+             i += newInterval
+             
+             }
+             do{
+             try csvData.write(to: fileURL, atomically: true, encoding: .utf8)
+             }
+             catch{
+             print ("error in writing the file")
+             }
+             */
         }
     }
     
     
+    @IBAction func sendKey(_ sender: UIButton) {
+        self.view.endEditing(true)
+        key = String(textFieldForKey.text ?? "")
+        textFieldForKey.isHidden = true
+        enter2.isHidden = true
+        textField.isHidden = false
+        enter.isHidden = false
+        
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -283,6 +349,8 @@ class ViewController: UIViewController {
         textField.isHidden = true
         enter.isHidden = true
         output.isHidden = true
+        textFieldForKey.isHidden = true
+        enter2.isHidden = true
         
         // Do any additional setup after loading the view.
     }
