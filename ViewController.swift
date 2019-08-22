@@ -21,11 +21,11 @@ class ViewController: UIViewController {
     @IBOutlet weak var MapView: MKMapView!
     @IBOutlet weak var enter: UIButton!
     @IBOutlet weak var textField: UITextField!
-    @IBOutlet weak var output: UITextView!
     @IBOutlet weak var lineChart: LineChartView!
     @IBOutlet weak var backGround: UIImageView!
     @IBOutlet weak var textFieldForKey: UITextField!
     @IBOutlet weak var enter2: UIButton!
+    @IBOutlet weak var rotationLineChart: LineChartView!
     
     //get our bundle path
     let filePath = Bundle.main.resourcePath
@@ -42,12 +42,16 @@ class ViewController: UIViewController {
     var lineChartEntryX = [ChartDataEntry]()
     var lineChartEntryY = [ChartDataEntry]()
     var lineChartEntryZ = [ChartDataEntry]()
+    var rotationLineChartEntryX = [ChartDataEntry]()
+    var rotationLineChartEntryY = [ChartDataEntry]()
+    var rotationLineChartEntryZ = [ChartDataEntry]()
     var sec = 0.0
+    var secForRotation = 0.0
     var newInterval = 0.0
     var sensorFlag = 0
     var key = ""
     var count = 0.0
-    var csvData = "Count,Roll,Pitch,Yaw,Accleration-X,Acceleration-Y,Acceleration-Z,Rotation-Rate-X,Rotation-Rate-Y,Rotation-Rate-Z\n"
+    var csvData = "Current-Time,Count,Roll,Pitch,Yaw,Accleration-X,Acceleration-Y,Acceleration-Z,Rotation-Rate-X,Rotation-Rate-Y,Rotation-Rate-Z\n"
     
     let calendar = Calendar.current
     let defaults = UserDefaults.standard
@@ -98,9 +102,9 @@ class ViewController: UIViewController {
         let accelerationX = data.userAcceleration.x
         let accelerationY = data.userAcceleration.y
         let accelerationZ = data.userAcceleration.z
-        let xVal = ChartDataEntry(x: Double(sec), y: accelerationX)
-        let yVal = ChartDataEntry(x: Double(sec), y: accelerationY)
-        let zVal = ChartDataEntry(x: Double(sec), y: accelerationZ)
+        let xVal = ChartDataEntry(x: Double(count), y: accelerationX)
+        let yVal = ChartDataEntry(x: Double(count), y: accelerationY)
+        let zVal = ChartDataEntry(x: Double(count), y: accelerationZ)
         lineChartEntryX.append(xVal)
         lineChartEntryY.append(yVal)
         lineChartEntryZ.append(zVal)
@@ -110,6 +114,12 @@ class ViewController: UIViewController {
         lineX.colors = [NSUIColor.blue]
         lineY.colors = [NSUIColor.red]
         lineZ.colors = [NSUIColor.yellow]
+        lineX.circleRadius = 0.05
+        lineX.drawCircleHoleEnabled = false
+        lineY.circleRadius = 0.05
+        lineY.drawCircleHoleEnabled = false
+        lineZ.circleRadius = 0.05
+        lineZ.drawCircleHoleEnabled = false
         let data = LineChartData()
         data.addDataSet(lineX)
         data.addDataSet(lineY)
@@ -140,8 +150,8 @@ class ViewController: UIViewController {
         if(flagStart == 1){
             count = 0.0
             flagStart = 0
-            mapButton.isHidden = true
-            waveButton.isHidden = true
+            //mapButton.isHidden = true
+            //waveButton.isHidden = true
             textFieldForKey.isHidden = false
             enter2.isHidden = false
             textField.text = "Interval:"
@@ -167,8 +177,7 @@ class ViewController: UIViewController {
             }
             */
             
-            manager.startAccelerometerUpdates()
-            defaults.set(manager.accelerometerData, forKey: "key")
+           
  
             
         }
@@ -212,11 +221,18 @@ class ViewController: UIViewController {
                                                         let accelerationX = validData.userAcceleration.x
                                                         let accelerationY = validData.userAcceleration.y
                                                         let accelerationZ = validData.userAcceleration.z
-                                                        
+                                                        let date = Date()
+                                                        let calendar = Calendar.current
+                                                        let hour = calendar.component(.hour, from: date)
+                                                        let minutes = calendar.component(.minute, from: date)
+                                                        let seconds = calendar.component(.second, from: date)
+                                                        let nano = calendar.component(.nanosecond, from: date)
+                                                        let currentTime = String(hour)+"-"+String(minutes)+"-"+String(seconds)+"-"+String(nano)
                                                         let strRoll = String(roll)
                                                         let strPitch = String(pitch)
                                                         let strYaw = String(yaw)
-                                                        let strCount = self.key+"."+String (self.count)
+                                                        //let strCount = self.key+"."+String (self.count)
+                                                        let strCount = String (self.count)
                                                         self.count += self.newInterval
                                                         let strRateX = String(rateX)
                                                         let strRateY = String(rateY)
@@ -224,28 +240,19 @@ class ViewController: UIViewController {
                                                         let strAcceX = String(accelerationX)
                                                         let strAcceY = String(accelerationY)
                                                         let strAcceZ = String(accelerationZ)
-                                                        let result = "Count: " + strCount + " Roll: " + strRoll + " Pitch: " + strPitch + " Yaw: " + strYaw + " rateX: " + strRateX + " rateY: " + strRateY + " rateZ: " + strRateZ + " accelerationX: " + strAcceX + " accelerationY: " + strAcceY + " accelerationZ: "+strAcceZ
-                                                        var  csvLine = strCount + "," + strRoll + "," + strPitch + ",";
+                                                      //  let result = "Count: " + strCount + " Roll: " + strRoll + " Pitch: " + strPitch + " Yaw: " + strYaw + " rateX: " + strRateX + " rateY: " + strRateY + " rateZ: " + strRateZ + " accelerationX: " + strAcceX + " accelerationY: " + strAcceY + " accelerationZ: "+strAcceZ
+                                                        var  csvLine = currentTime+","+strCount + "," + strRoll + "," + strPitch + ",";
                                                         csvLine = csvLine + strYaw + "," + strAcceX + "," + strAcceY + "," + strAcceZ + "," + strRateX + "," + strRateY + "," + strRateZ + "\n"
                                                         self.defaults.set(csvLine,forKey: strCount)
                                                         self.openLineChart(data: validData, interval: self.newInterval)
+                                                        self.openRotationLine(data: validData, interval: self.newInterval)
                                                     }
                 })
                 
             }
             
         }
-        else{
         
-        var localKey = String(textField.text ?? "")
-            localKey = key+"."+localKey
-        if let result = defaults.string(forKey: localKey){
-        //output.text = defaults.data(forKey: key)
-        output.text = result
-        output.isHidden = false
-        //print(defaults.data(forKey: key))
-        }
-        }
         textField.isHidden = true
         enter.isHidden = true
     }
@@ -254,17 +261,15 @@ class ViewController: UIViewController {
     @IBAction func realTimeWave(_ sender: UIButton) {
         if(flagWave == 1){
             waveButton.setImage(closeWave, for: .normal)
-            textField.isHidden = false
-            textField.text = "Local Key:"
-            enter.isHidden = false
+            lineChart.isHidden = false
+            rotationLineChart.isHidden = false
             flagWave = 0
             
         }
         else{
             flagWave = 1
-            textField.isHidden = true
-            enter.isHidden = true
-            output.isHidden = true
+            lineChart.isHidden = true
+            rotationLineChart.isHidden = true
             waveButton.setImage(startWave, for: .normal)
         }
         //print(manager.isAccelerometerAvailable)
@@ -278,15 +283,49 @@ class ViewController: UIViewController {
         }
     }
     
+    func openRotationLine (data: CMDeviceMotion, interval : Double) {
+        let rotationX = data.rotationRate.x
+        let rotationY = data.rotationRate.y
+        let rotationZ = data.rotationRate.z
+        let xVal = ChartDataEntry(x: Double(count), y: rotationX)
+        let yVal = ChartDataEntry(x: Double(count), y: rotationY)
+        let zVal = ChartDataEntry(x: Double(count), y: rotationZ)
+        rotationLineChartEntryX.append(xVal)
+        rotationLineChartEntryY.append(yVal)
+        rotationLineChartEntryZ.append(zVal)
+        let lineX = LineChartDataSet(entries: rotationLineChartEntryX, label: "X Rotation Rate")
+        let lineY = LineChartDataSet(entries: rotationLineChartEntryY, label: "Y Rotation Rate")
+        let lineZ = LineChartDataSet(entries: rotationLineChartEntryZ, label: "Z Rotation Rate")
+        lineX.colors = [NSUIColor.blue]
+        lineY.colors = [NSUIColor.red]
+        lineZ.colors = [NSUIColor.yellow]
+        lineX.circleRadius = 0.05
+        lineX.drawCircleHoleEnabled = false
+        lineY.circleRadius = 0.05
+        lineY.drawCircleHoleEnabled = false
+        lineZ.circleRadius = 0.05
+        lineZ.drawCircleHoleEnabled = false
+        let data = LineChartData()
+        data.addDataSet(lineX)
+        data.addDataSet(lineY)
+        data.addDataSet(lineZ)
+        rotationLineChart.data = data
+        //secForRotation += interval
+    }
+    
     func saveToFile (){
-        let file = key + ".txt" //this is the file. we will write to and read from it
+       // let file = key + ".txt" //this is the file. we will write to and read from it
         let csvFile = key + ".csv"
         
         if let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
             
-            let fileURL = dir.appendingPathComponent(file)
+            let fileURL = dir.appendingPathComponent(csvFile)
             
             var i = 0.0
+           // var newLine = String(count)
+            //newLine.append(",Roll,Pitch,Yaw,Accleration-X,Acceleration-Y,Acceleration-Z,Rotation-Rate-X,Rotation-Rate-Y,Rotation-Rate-Z\n")
+           // csvData.append(newLine)
+           /*
             while(i<count){
                 
                
@@ -303,6 +342,25 @@ class ViewController: UIViewController {
                 
                 i += newInterval
                 
+            }*/
+            while(i<count){
+                
+                
+                //var localKey = key + "." + String(i)
+                var localKey = String(i)
+                if var data = defaults.string(forKey: localKey) {
+                    csvData.append(data)
+                    
+                }
+                
+                i += newInterval
+                
+            }
+            do{
+                try csvData.write(to: fileURL, atomically: true, encoding: .utf8)
+            }
+            catch{
+                print ("error in writing the file")
             }
             let vc = UIActivityViewController(activityItems: [fileURL], applicationActivities: [])
             present(vc, animated: true, completion: nil)
@@ -344,13 +402,15 @@ class ViewController: UIViewController {
     }
     
     override func viewDidLoad() {
+        
         super.viewDidLoad()
         MapView.isHidden = true
         textField.isHidden = true
         enter.isHidden = true
-        output.isHidden = true
         textFieldForKey.isHidden = true
         enter2.isHidden = true
+        lineChart.isHidden = true
+        rotationLineChart.isHidden = true
         
         // Do any additional setup after loading the view.
     }
