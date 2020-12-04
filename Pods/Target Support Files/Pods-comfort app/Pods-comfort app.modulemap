@@ -1,0 +1,6 @@
+framework module Pods_comfort_app {
+  umbrella header "Pods-comfort app-umbrella.h"
+
+  export *
+  module * { export * }
+}
